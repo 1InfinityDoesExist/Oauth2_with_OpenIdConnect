@@ -4,6 +4,7 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.time.Duration;
 import java.util.UUID;
 
 import org.springframework.context.annotation.Bean;
@@ -11,6 +12,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
+import org.springframework.security.core.token.Token;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -43,8 +45,11 @@ public class OAuth2AuthorizationServerConfig {
 
 	@Bean
 	public UserDetailsService users() {
-		UserDetails user = User.withDefaultPasswordEncoder().username("sinchan").password("password").roles("USER")
-				.build();
+		UserDetails user = User.withDefaultPasswordEncoder().username("sinchan").password("password")
+				.authorities("USER").build();
+
+		// User.withUsername("sinchan").password("password").authorities("ROLE_ADMIN").build();
+		System.out.println(user.getAuthorities());
 		return new InMemoryUserDetailsManager(user);
 	}
 
@@ -53,9 +58,13 @@ public class OAuth2AuthorizationServerConfig {
 		RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString()).clientId("client")
 				.clientSecret("secret").clientAuthenticationMethod(ClientAuthenticationMethod.BASIC)
 				.authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-				.authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN).redirectUri("http://www.youtube.com")
-				.scope(OidcScopes.OPENID).scope("read").scope("write")
-				.clientSettings(clientSettings -> clientSettings.requireUserConsent(true)).build();
+				.authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+				.redirectUri("http://localhost:8547/authorized").scope(OidcScopes.OPENID).scope(OidcScopes.PROFILE)
+				.scope(OidcScopes.EMAIL).scope("read").scope("write").tokenSettings(tokenSetting -> {
+					tokenSetting.accessTokenTimeToLive(Duration.ofHours(1));
+				}).clientSettings(clientSettings -> {
+					clientSettings.requireUserConsent(true);
+				}).build();
 		return new InMemoryRegisteredClientRepository(registeredClient);
 	}
 
@@ -69,7 +78,7 @@ public class OAuth2AuthorizationServerConfig {
 	@Bean
 	public ProviderSettings providerSettings() {
 		ProviderSettings ps = new ProviderSettings();
-		ps = ps.issuer("http://localhost:9000");
+		ps = ps.issuer("http://localhost:8547");
 		ps = ps.jwkSetEndpoint("/certs");
 		return ps;
 	}
